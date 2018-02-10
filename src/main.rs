@@ -3,7 +3,9 @@ extern crate clap;
 
 extern crate time;
 
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
+use std::io::{Write, stdout};
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::process;
 use std::time::{Duration, Instant};
 use std::thread::sleep;
@@ -16,23 +18,30 @@ fn main() {
             (about: "polls")
             (@setting TrailingVarArg)
             (@arg TIMESTAMP: -t --timestamp "Print timestamps")
+            (@arg EXIT_CODE: -x --exit_code "Poll exit code, not stdout")
             (@arg INTERVAL: -i --interval +takes_value "Polling interval, in seconds")
             (@arg CMD: ... * "Command to run")
         ).get_matches();
 
     let args: Vec<&OsStr> = matches.values_of_os("CMD").unwrap().collect();
 
+    let print_timestamp = matches.is_present("TIMESTAMP");
+    let use_code = matches.is_present("EXIT_CODE");
+
     let interval_sec: u64 = matches.value_of("INTERVAL")
         .map_or(1, |s| s.parse().unwrap());
 
-    let print_timestamp = matches.is_present("TIMESTAMP");
-
     let mut timer = Timer::new(interval_sec * 1000);
-    let mut last = String::from("");
+    let mut last = OsString::new();
 
     loop {
         timer.wait();
-        let cmd_result = exit_code(&args);
+        let cmd_result = if use_code {
+            exit_code(&args)
+        } else {
+            output(&args)
+        };
+
         if cmd_result == last {
             continue;
         }
@@ -42,7 +51,7 @@ fn main() {
             print!("{} - ", timestamp);
         }
 
-        print!("{}\n", cmd_result);
+        stdout().write(cmd_result.as_os_str().as_bytes()).unwrap();
         last = cmd_result
     }
 }
@@ -81,7 +90,7 @@ fn to_millis(d: &Duration) -> u64 {
     (d.as_secs() * 1000) + (d.subsec_nanos() / 1000000) as u64
 }
 
-fn exit_code(cmd: &Vec<&OsStr>) -> String {
+fn exit_code(cmd: &Vec<&OsStr>) -> OsString {
     let exit = process::Command::new(&cmd[0])
         .args(&cmd[1..])
         .stdout(process::Stdio::null())
@@ -90,9 +99,19 @@ fn exit_code(cmd: &Vec<&OsStr>) -> String {
         .unwrap();
 
     if exit.success() {
-        String::from("Success")
+        OsString::from("Success\n")
     } else {
-        format!("Failed ({})", exit.code()
-            .unwrap_or(1000))
+        OsString::from(format!("Failed ({})\n", exit.code()
+            .unwrap_or(1000)))
     }
+}
+
+fn output(cmd: &Vec<&OsStr>) -> OsString {
+    let out = process::Command::new(&cmd[0])
+        .args(&cmd[1..])
+        .stderr(process::Stdio::null())
+        .output()
+        .unwrap()
+        .stdout;
+    OsString::from_vec(out)
 }
