@@ -19,20 +19,28 @@ fn main() {
             (@setting TrailingVarArg)
             (@arg TIMESTAMP: -t --timestamp "Print timestamps")
             (@arg EXIT_CODE: -x --exit_code "Poll exit code, not stdout")
+            (@arg SHELL: -s --shell "Expect a single argument, which will be run in a shell")
             (@arg INTERVAL: -i --interval +takes_value "Polling interval, in seconds")
             (@arg CMD: ... * "Command to run")
         ).get_matches();
 
-    let args: Vec<&OsStr> = matches.values_of_os("CMD").unwrap().collect();
-
     let print_timestamp = matches.is_present("TIMESTAMP");
     let use_code = matches.is_present("EXIT_CODE");
+    let use_shell = matches.is_present("SHELL");
 
     let interval_sec: u64 = matches.value_of("INTERVAL")
         .map_or(1, |s| s.parse().unwrap());
 
+    let args: Vec<&OsStr> = if use_shell {
+        vec!(OsStr::new("sh"), OsStr::new("-c"), matches.value_of_os("CMD").unwrap())
+    } else {
+        matches.values_of_os("CMD").unwrap().collect()
+    };
+
     let mut timer = Timer::new(interval_sec * 1000);
     let mut last = OsString::new();
+
+    print!("{:?}\n", args);
 
     loop {
         timer.wait();
@@ -52,6 +60,7 @@ fn main() {
         }
 
         stdout().write(cmd_result.as_os_str().as_bytes()).unwrap();
+        stdout().flush().unwrap();
         last = cmd_result
     }
 }
