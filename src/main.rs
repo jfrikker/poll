@@ -20,7 +20,7 @@ fn main() {
             (about: "Runs a command repeatedly on some interval. Watches for changes to the output, and reacts to them.")
             (@setting TrailingVarArg)
             (@arg TIMESTAMP: -t --timestamp "Print timestamps")
-            (@arg TIMESTAMP_FORMAT: --ts_format +takes_value requires[TIMESTAMP] "The format to use for timestamps (strftime format)")
+            (@arg TIMESTAMP_FORMAT: --ts_format +takes_value requires[TIMESTAMP] "The format to use for timestamps (strftime format). Defaults to \"%F %H:%M:%S\"")
             (@arg EXIT_CODE: -x --exit_code "Poll exit code, not stdout")
             (@arg UNTIL_SUCCESS: -u --until_success requires[EXIT_CODE] "Exit on success")
             (@arg UNTIL_FAILURE: -f --until_failure requires[EXIT_CODE] conflicts_with[UNTIL_SUCCESS] "Exit on failure")
