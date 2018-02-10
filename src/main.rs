@@ -22,6 +22,7 @@ fn main() {
             (@arg UNTIL_SUCCESS: -u --until_success requires[EXIT_CODE] "Exit on success")
             (@arg UNTIL_FAILURE: -f --until_failure requires[EXIT_CODE] conflicts_with[UNTIL_SUCCESS] "Exit on failure")
             (@arg SHELL: -s --shell "Expect a single argument, which will be run in a shell")
+            (@arg QUIET: -q --quiet "Suppress output")
             (@arg INTERVAL: -i --interval +takes_value "Polling interval, in seconds")
             (@arg CMD: ... * "Command to run")
         ).get_matches();
@@ -30,6 +31,7 @@ fn main() {
     let use_code = matches.is_present("EXIT_CODE");
     let until_success = matches.is_present("UNTIL_SUCCESS");
     let until_failure = matches.is_present("UNTIL_FAILURE");
+    let quiet = matches.is_present("QUIET");
     let use_shell = matches.is_present("SHELL");
 
     let interval_sec: u64 = matches.value_of("INTERVAL")
@@ -71,13 +73,16 @@ fn main() {
             continue;
         }
 
-        if print_timestamp {
-            let timestamp = time::strftime("%F %H:%M:%S", &time::now()).unwrap();
-            print!("{} - ", timestamp);
+        if !quiet {
+            if print_timestamp {
+                let timestamp = time::strftime("%F %H:%M:%S", &time::now()).unwrap();
+                print!("{} - ", timestamp);
+            }
+
+            stdout().write(cmd_result.as_os_str().as_bytes()).unwrap();
+            stdout().flush().unwrap();
         }
 
-        stdout().write(cmd_result.as_os_str().as_bytes()).unwrap();
-        stdout().flush().unwrap();
         last = cmd_result
     }
 }
