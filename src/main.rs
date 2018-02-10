@@ -1,16 +1,17 @@
-#[macro_use]
-extern crate clap;
-
+#[macro_use] extern crate quick_error;
+#[macro_use] extern crate clap;
 extern crate time;
 
-use std::error;
+mod error;
+
 use std::ffi::{OsStr, OsString};
-use std::fmt;
 use std::io::{self, Write, stdout, stderr};
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::process;
 use std::time::{Duration, Instant};
 use std::thread::sleep;
+
+use error::PollError;
 
 fn main() {
     let matches = 
@@ -149,47 +150,4 @@ fn output(cmd: &Vec<&OsStr>) -> Result<OsString, io::Error> {
         .stderr(process::Stdio::null())
         .output()
         .map(|res| OsString::from_vec(res.stdout))
-}
-
-#[derive(Debug)]
-enum PollError {
-    Io(io::Error),
-    TimeParse(time::ParseError)
-}
-
-impl PollError {
-    fn unwrap(&self) -> &error::Error {
-        match *self {
-            PollError::Io(ref err) => err,
-            PollError::TimeParse(ref err) => err,
-        }
-    }
-}
-
-impl fmt::Display for PollError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.unwrap())
-    }
-}
-
-impl error::Error for PollError {
-    fn description(&self) -> &str {
-        self.unwrap().description()
-    }
-
-    fn cause(&self) -> Option<&error::Error> {
-        Some(self.unwrap())
-    }
-}
-
-impl From<io::Error> for PollError {
-    fn from(err: io::Error) -> PollError {
-        PollError::Io(err)
-    }
-}
-
-impl From<time::ParseError> for PollError {
-    fn from(err: time::ParseError) -> PollError {
-        PollError::TimeParse(err)
-    }
 }
