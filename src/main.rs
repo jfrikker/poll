@@ -3,8 +3,10 @@ extern crate clap;
 
 extern crate time;
 
+use std::error;
 use std::ffi::{OsStr, OsString};
-use std::io::{Error, Write, stdout, stderr};
+use std::fmt;
+use std::io::{self, Write, stdout, stderr};
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::process;
 use std::time::{Duration, Instant};
@@ -17,6 +19,7 @@ fn main() {
             (about: "Runs a command repeatedly on some interval. Watches for changes to the output, and reacts to them.")
             (@setting TrailingVarArg)
             (@arg TIMESTAMP: -t --timestamp "Print timestamps")
+            (@arg TIMESTAMP_FORMAT: --ts_format +takes_value requires[TIMESTAMP] "The format to use for timestamps (strftime format)")
             (@arg EXIT_CODE: -x --exit_code "Poll exit code, not stdout")
             (@arg UNTIL_SUCCESS: -u --until_success requires[EXIT_CODE] "Exit on success")
             (@arg UNTIL_FAILURE: -f --until_failure requires[EXIT_CODE] conflicts_with[UNTIL_SUCCESS] "Exit on failure")
@@ -36,8 +39,9 @@ fn main() {
     }
 }
 
-fn do_loop(matches: &clap::ArgMatches) -> Result<(), Error> {
+fn do_loop(matches: &clap::ArgMatches) -> Result<(), PollError> {
     let print_timestamp = matches.is_present("TIMESTAMP");
+    let timestamp_format = matches.value_of("TIMESTAMP_FORMAT").unwrap_or("%F %H:%M:%S");
     let use_code = matches.is_present("EXIT_CODE");
     let until_success = matches.is_present("UNTIL_SUCCESS");
     let until_failure = matches.is_present("UNTIL_FAILURE");
@@ -76,7 +80,7 @@ fn do_loop(matches: &clap::ArgMatches) -> Result<(), Error> {
                     .unwrap_or(1000)))
             }
         } else {
-            output(&args).unwrap()
+            try!(output(&args))
         };
 
         if cmd_result == last {
@@ -85,7 +89,7 @@ fn do_loop(matches: &clap::ArgMatches) -> Result<(), Error> {
 
         if !quiet {
             if print_timestamp {
-                let timestamp = time::strftime("%F %H:%M:%S", &time::now()).unwrap();
+                let timestamp = try!(time::strftime(timestamp_format, &time::now()));
                 print!("{} - ", timestamp);
             }
 
@@ -131,7 +135,7 @@ fn to_millis(d: &Duration) -> u64 {
     (d.as_secs() * 1000) + (d.subsec_nanos() / 1000000) as u64
 }
 
-fn exit_code(cmd: &Vec<&OsStr>) -> Result<process::ExitStatus, Error> {
+fn exit_code(cmd: &Vec<&OsStr>) -> Result<process::ExitStatus, io::Error> {
     process::Command::new(&cmd[0])
         .args(&cmd[1..])
         .stdout(process::Stdio::null())
@@ -139,10 +143,53 @@ fn exit_code(cmd: &Vec<&OsStr>) -> Result<process::ExitStatus, Error> {
         .status()
 }
 
-fn output(cmd: &Vec<&OsStr>) -> Result<OsString, Error> {
+fn output(cmd: &Vec<&OsStr>) -> Result<OsString, io::Error> {
     process::Command::new(&cmd[0])
         .args(&cmd[1..])
         .stderr(process::Stdio::null())
         .output()
         .map(|res| OsString::from_vec(res.stdout))
+}
+
+#[derive(Debug)]
+enum PollError {
+    Io(io::Error),
+    TimeParse(time::ParseError)
+}
+
+impl PollError {
+    fn unwrap(&self) -> &error::Error {
+        match *self {
+            PollError::Io(ref err) => err,
+            PollError::TimeParse(ref err) => err,
+        }
+    }
+}
+
+impl fmt::Display for PollError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.unwrap())
+    }
+}
+
+impl error::Error for PollError {
+    fn description(&self) -> &str {
+        self.unwrap().description()
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        Some(self.unwrap())
+    }
+}
+
+impl From<io::Error> for PollError {
+    fn from(err: io::Error) -> PollError {
+        PollError::Io(err)
+    }
+}
+
+impl From<time::ParseError> for PollError {
+    fn from(err: time::ParseError) -> PollError {
+        PollError::TimeParse(err)
+    }
 }

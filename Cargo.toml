@@ -6,3 +6,7 @@ authors = ["jfrikker"]
 [dependencies]
 clap = "~2.29"
 time = "0.1"
+
+[profile.release]
+lto = true
+panic = 'abort'
