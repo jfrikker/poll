@@ -19,6 +19,8 @@ fn main() {
             (@setting TrailingVarArg)
             (@arg TIMESTAMP: -t --timestamp "Print timestamps")
             (@arg EXIT_CODE: -x --exit_code "Poll exit code, not stdout")
+            (@arg UNTIL_SUCCESS: -u --until_success requires[EXIT_CODE] "Exit on success")
+            (@arg UNTIL_FAILURE: -f --until_failure requires[EXIT_CODE] conflicts_with[UNTIL_SUCCESS] "Exit on failure")
             (@arg SHELL: -s --shell "Expect a single argument, which will be run in a shell")
             (@arg INTERVAL: -i --interval +takes_value "Polling interval, in seconds")
             (@arg CMD: ... * "Command to run")
@@ -26,6 +28,8 @@ fn main() {
 
     let print_timestamp = matches.is_present("TIMESTAMP");
     let use_code = matches.is_present("EXIT_CODE");
+    let until_success = matches.is_present("UNTIL_SUCCESS");
+    let until_failure = matches.is_present("UNTIL_FAILURE");
     let use_shell = matches.is_present("SHELL");
 
     let interval_sec: u64 = matches.value_of("INTERVAL")
@@ -40,12 +44,25 @@ fn main() {
     let mut timer = Timer::new(interval_sec * 1000);
     let mut last = OsString::new();
 
-    print!("{:?}\n", args);
-
     loop {
         timer.wait();
         let cmd_result = if use_code {
-            exit_code(&args)
+            let status = exit_code(&args);
+
+            if status.success() {
+                if until_success {
+                    process::exit(0);
+                }
+
+                OsString::from("Success\n")
+            } else {
+                if until_failure {
+                    process::exit(0);
+                }
+
+                OsString::from(format!("Failed ({})\n", status.code()
+                    .unwrap_or(1000)))
+            }
         } else {
             output(&args)
         };
@@ -99,20 +116,13 @@ fn to_millis(d: &Duration) -> u64 {
     (d.as_secs() * 1000) + (d.subsec_nanos() / 1000000) as u64
 }
 
-fn exit_code(cmd: &Vec<&OsStr>) -> OsString {
-    let exit = process::Command::new(&cmd[0])
+fn exit_code(cmd: &Vec<&OsStr>) -> process::ExitStatus {
+    process::Command::new(&cmd[0])
         .args(&cmd[1..])
         .stdout(process::Stdio::null())
         .stderr(process::Stdio::null())
         .status()
-        .unwrap();
-
-    if exit.success() {
-        OsString::from("Success\n")
-    } else {
-        OsString::from(format!("Failed ({})\n", exit.code()
-            .unwrap_or(1000)))
-    }
+        .unwrap()
 }
 
 fn output(cmd: &Vec<&OsStr>) -> OsString {
