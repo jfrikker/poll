@@ -30,7 +30,7 @@ fn main() {
         Ok(x) => x,
         Err(err) => {
             let mut stderr = stderr();
-            write!(&mut stderr, "{}\n", err.to_string());
+            write!(&mut stderr, "{}\n", err.to_string()).unwrap();
             process::exit(1);
         }
     }
