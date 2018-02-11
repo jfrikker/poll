@@ -27,6 +27,7 @@ fn main() {
             (@arg SHELL: -s --shell "Expect a single argument, which will be run in a shell")
             (@arg QUIET: -q --quiet "Suppress output")
             (@arg INTERVAL: -i --interval +takes_value "Polling interval, in seconds (default 1 second)")
+            (@arg RUN_CMD: -r --run +takes_value "Command to run (in a shell) for each line of output")
             (@arg CMD: ... * "Command to run")
         ).get_matches();
     
@@ -57,6 +58,8 @@ fn do_loop(matches: &clap::ArgMatches) -> Result<(), PollError> {
     } else {
         matches.values_of_os("CMD").unwrap().collect()
     };
+
+    let run_cmd = matches.value_of_os("RUN_CMD");
 
     let mut timer = Timer::new(interval_sec * 1000);
     let mut last = OsString::new();
@@ -97,6 +100,8 @@ fn do_loop(matches: &clap::ArgMatches) -> Result<(), PollError> {
             try!(stdout().write(cmd_result.as_os_str().as_bytes()));
             try!(stdout().flush());
         }
+
+        run_cmd.map(|cmd| do_run_cmd(cmd, cmd_result.as_os_str()));
 
         last = cmd_result
     }
@@ -150,4 +155,17 @@ fn output(cmd: &Vec<&OsStr>) -> Result<OsString, io::Error> {
         .stderr(process::Stdio::null())
         .output()
         .map(|res| OsString::from_vec(res.stdout))
+}
+
+fn do_run_cmd(cmd: &OsStr, output: &OsStr) -> Result<process::ExitStatus, io::Error> {
+    let mut child = try!(process::Command::new("sh")
+        .arg("-c")
+        .arg(cmd)
+        .stdin(process::Stdio::piped())
+        .spawn());
+    {
+        let stdin = child.stdin.as_mut().unwrap();
+        try!(stdin.write(output.as_bytes()));
+    }
+    child.wait()
 }
