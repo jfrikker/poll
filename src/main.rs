@@ -1,6 +1,7 @@
 #[macro_use] extern crate quick_error;
 #[macro_use] extern crate clap;
 extern crate time;
+extern crate sha1;
 
 mod error;
 
@@ -62,7 +63,7 @@ fn do_loop(matches: &clap::ArgMatches) -> Result<(), PollError> {
     let run_cmd = matches.value_of_os("RUN_CMD");
 
     let mut timer = Timer::new(interval_sec * 1000);
-    let mut last = OsString::new();
+    let mut last = None;
 
     loop {
         timer.wait();
@@ -87,7 +88,9 @@ fn do_loop(matches: &clap::ArgMatches) -> Result<(), PollError> {
             try!(output(&args))
         };
 
-        if cmd_result == last {
+        let digest = Some(hash(cmd_result.as_os_str()));
+
+        if digest == last {
             continue;
         }
 
@@ -103,7 +106,7 @@ fn do_loop(matches: &clap::ArgMatches) -> Result<(), PollError> {
 
         run_cmd.map(|cmd| do_run_cmd(cmd, cmd_result.as_os_str()));
 
-        last = cmd_result
+        last = digest
     }
 }
 
@@ -168,4 +171,10 @@ fn do_run_cmd(cmd: &OsStr, output: &OsStr) -> Result<process::ExitStatus, io::Er
         try!(stdin.write(output.as_bytes()));
     }
     child.wait()
+}
+
+fn hash(data: &OsStr) -> sha1::Digest {
+    let mut hasher = sha1::Sha1::new();
+    hasher.update(data.as_bytes());
+    hasher.digest()
 }

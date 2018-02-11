@@ -7,6 +7,7 @@ authors = ["jfrikker"]
 clap = "~2.29"
 time = "0.1"
 quick-error = "1.2.1"
+sha1 = "0.6.0"
 
 [profile.release]
 lto = true
