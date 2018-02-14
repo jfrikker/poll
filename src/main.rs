@@ -17,7 +17,7 @@ use error::PollError;
 fn main() {
     let matches = 
         clap_app!(poll =>
-            (version: "1.0")
+            (version: "1.0.1")
             (about: "Runs a command repeatedly on some interval. Watches for changes to the output, and reacts to them.")
             (@setting TrailingVarArg)
             (@arg TIMESTAMP: -t --timestamp "Print timestamps")
