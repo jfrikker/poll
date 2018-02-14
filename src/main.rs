@@ -4,15 +4,15 @@ extern crate time;
 extern crate sha1;
 
 mod error;
+mod timer;
 
 use std::ffi::{OsStr, OsString};
 use std::io::{self, Write, stdout, stderr};
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::process;
-use std::time::{Duration, Instant};
-use std::thread::sleep;
 
 use error::PollError;
+use timer::Timer;
 
 fn main() {
     let matches = 
@@ -108,40 +108,6 @@ fn do_loop(matches: &clap::ArgMatches) -> Result<(), PollError> {
 
         last = digest
     }
-}
-
-struct Timer {
-    interval_ms: u64,
-    last: Option<Instant>
-}
-
-impl Timer {
-    fn new(interval_ms: u64) -> Timer {
-        Timer {
-            interval_ms: interval_ms,
-            last: None
-        }
-    }
-
-    fn wait(&mut self) {
-        let now = Instant::now();
-        self.last = Some(match self.last {
-            Some(l) => {
-                let elapsed = to_millis(&now.duration_since(l));
-                if elapsed < self.interval_ms {
-                    sleep(Duration::from_millis(self.interval_ms - elapsed));
-                    Instant::now()
-                } else {
-                    now
-                }
-            },
-            None => now
-        });
-    }
-}
-
-fn to_millis(d: &Duration) -> u64 {
-    (d.as_secs() * 1000) + (d.subsec_nanos() / 1000000) as u64
 }
 
 fn exit_code(cmd: &Vec<&OsStr>) -> Result<process::ExitStatus, io::Error> {
