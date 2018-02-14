@@ -51,8 +51,8 @@ fn do_loop(matches: &clap::ArgMatches) -> Result<(), PollError> {
     let quiet = matches.is_present("QUIET");
     let use_shell = matches.is_present("SHELL");
 
-    let interval_sec: u64 = matches.value_of("INTERVAL")
-        .map_or(1, |s| s.parse().unwrap());
+    let interval_sec: u64 = try!(
+        matches.value_of("INTERVAL").map_or(Ok(1), |s| s.parse()));
 
     let args: Vec<&OsStr> = if use_shell {
         vec!(OsStr::new("sh"), OsStr::new("-c"), matches.value_of_os("CMD").unwrap())

@@ -1,4 +1,5 @@
 use std::io;
+use std::num::ParseIntError;
 
 use time;
 
@@ -12,6 +13,12 @@ quick_error! {
             from()
         }
         TimeParse(err: time::ParseError) {
+            cause(err)
+            display("{}", err)
+            description(err.description())
+            from()
+        }
+        IntParse(err: ParseIntError) {
             cause(err)
             display("{}", err)
             description(err.description())
