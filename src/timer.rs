@@ -2,14 +2,14 @@ use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 pub struct Timer {
-    interval_ms: u64,
+    interval: Duration,
     last: Option<Instant>
 }
 
 impl Timer {
-    pub fn new(interval_ms: u64) -> Timer {
+    pub fn new(interval: Duration) -> Timer {
         Timer {
-            interval_ms: interval_ms,
+            interval: interval,
             last: None
         }
     }
@@ -18,9 +18,9 @@ impl Timer {
         let now = Instant::now();
         self.last = Some(match self.last {
             Some(l) => {
-                let elapsed = to_millis(&now.duration_since(l));
-                if elapsed < self.interval_ms {
-                    sleep(Duration::from_millis(self.interval_ms - elapsed));
+                let elapsed = now.duration_since(l);
+                if elapsed < self.interval {
+                    sleep(self.interval - elapsed);
                     Instant::now()
                 } else {
                     now
@@ -29,8 +29,4 @@ impl Timer {
             None => now
         });
     }
-}
-
-fn to_millis(d: &Duration) -> u64 {
-    (d.as_secs() * 1000) + (d.subsec_nanos() / 1000000) as u64
 }

@@ -10,6 +10,7 @@ use std::ffi::{OsStr, OsString};
 use std::io::{self, Write, stdout, stderr};
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::process;
+use std::time::Duration;
 
 use error::PollError;
 use timer::Timer;
@@ -62,7 +63,7 @@ fn do_loop(matches: &clap::ArgMatches) -> Result<(), PollError> {
 
     let run_cmd = matches.value_of_os("RUN_CMD");
 
-    let mut timer = Timer::new(interval_sec * 1000);
+    let mut timer = Timer::new(Duration::from_secs(interval_sec));
     let mut last = None;
 
     loop {
