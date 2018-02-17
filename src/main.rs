@@ -102,6 +102,11 @@ fn do_loop(matches: &clap::ArgMatches) -> Result<(), PollError> {
             }
 
             try!(stdout().write(cmd_result.as_os_str().as_bytes()));
+
+            if !ends_with_newline(&cmd_result) {
+                try!(write!(stdout(), "\n"));
+            }
+
             try!(stdout().flush());
         }
 
@@ -144,4 +149,9 @@ fn hash(data: &OsStr) -> sha1::Digest {
     let mut hasher = sha1::Sha1::new();
     hasher.update(data.as_bytes());
     hasher.digest()
+}
+
+fn ends_with_newline(string: &OsStr) -> bool {
+    let as_string = string.to_string_lossy();
+    as_string.chars().last() == Some('\n')
 }
